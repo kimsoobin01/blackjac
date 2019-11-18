@@ -38,7 +38,16 @@ int gameEnd = 0;                      //game end flag
 int cardNum[13] = { 1,2,3,4,5,6,7,8,9,10,11,12,13 };
 //카드 문양 종류
 int cardShape[4] = { 100,200,300,400 };
-
+//턴 끝나는 플래그
+int turnEnd = 0;
+//카드 소지 개수
+int handCardNum = 2;
+//딜러 카드 숫자 합
+int serverCardNum = 0;
+//딜러 숫자 합
+int serverCardSum = 0;
+//인풋 전역 변수
+int input;
 //some utility functions
 
 //get an integer input from standard input (keyboard)
@@ -153,11 +162,11 @@ void printCard(int cardnum) {
 
 //mix the card sets and put in the array
 int mixCardTray(void) {
-
+	
+   int i;
+   int j;
    int temp;
    int randomNum;
-   int i;
-   int j; 
 
    //4가지 카드 문양과 13가지 카드 숫자를 곱한 52장의 카드를 CardTray에 넣어준다.
    for (i = 0; i < 4; i++)
@@ -199,14 +208,10 @@ int pullCard(void) {
 
 //playing game functions -----------------------------
 
-//인풋 전역 변수
-int input;
-
 //player settiing
 int configUser(void) {
-	
 
-   int i;
+   int	i;
    //인풋 내용 출력 
    printf("input the number of players (Max: %d): ", N_MAX_USER);
 
@@ -244,7 +249,6 @@ int configUser(void) {
 //betting
 int betDollar(void) {
 
-   int i;
    printf("------ Betting Step ------\n");
 
    //input이 0이 아닐경우에 벗어난다.
@@ -279,7 +283,9 @@ int betDollar(void) {
    } while (input == 0);
 
 
+   
    //나머지 플레이어들은 N_MAX_BET 가 최대인 범위에서 랜덤하게 베팅한다.
+   int i;
    for (i = 1; i < n_user; i++)
    {
       //1~N_MAX_BET만큼의 랜덤한  수를 생성해서 베팅 금액에 넣어준다.
@@ -334,10 +340,6 @@ void printCardInitialStatus(void) {
    }
 }
 
-int getAction(void) {
-
-}
-
 
 void printUserCardStatus(int user, int cardcnt) {
    int i;
@@ -352,8 +354,203 @@ void printUserCardStatus(int user, int cardcnt) {
 
 
 // calculate the card sum and see if : 1. under 21, 2. over 21, 3. blackjack
-int calcStepResult() {
+int calcStepResult(int user) {
 
+   //A카드 변화 플래그
+   int change = 0;
+   //카드 수 합계 초기화
+   cardSum[user] = 0;
+
+   //가지고 있는 모든 카드를 하나씩 꺼내서 합한다.
+   int i;
+   for (i = 0; i < handCardNum; i++)
+   {
+      //카드 실제 숫자를 받아온다.
+       int getNum = getCardNum(cardhold[user][i]);
+
+       cardSum[user] += getNum;
+
+       //getNum 이 만약 1일 경우
+       if (getNum == 1)
+       {
+          //chage 1로 바꿔준다.
+          change = 1;
+       }
+   }
+
+   //change가 1이되면
+   if (change == 1)
+   {
+      //카드 총합이 11보다 작거나 같을경우
+      if (cardSum[user] <= 11)
+      {
+         cardSum[user] += 10;
+      }
+       
+   }
+
+   //합이 21일 경우에
+   if (cardSum[user] == 21)
+   {
+      dollar[user] += bet[user];
+      printf("Black jack! you win!! --> +$%d ($%d)", bet[user], dollar[user]);
+      //턴 종료
+      turnEnd = 1;
+   }
+   //합이 21 초과할 경우에
+   else if (cardSum[user] > 21)
+   {
+      dollar[user] -= bet[user];
+      printf("Dead (sum:%d) --> -$%d ($%d)", cardSum[user], bet[user], dollar[user]);
+      //턴 종료
+      turnEnd = 1;
+   }
+
+}
+
+//딜러 카드 합 및 결과
+int calcsServerStepResult() {
+
+   //A카드 변화 플래그
+   int change = 0;
+   //카드 수 합계 초기화
+   serverCardSum = 0;
+
+   //가지고 있는 모든 카드를 하나씩 꺼내서 합한다.
+   int i;
+   for (i = 0; i < handCardNum; i++)
+   {
+      //카드 실제 숫자를 받아온다.
+      int getNum = getCardNum(cardhold[n_user][i]);
+
+      serverCardSum += getNum;
+
+      //getNum 이 만약 1일 경우
+      if (getNum == 1)
+      {
+         //chage 1로 바꿔준다.
+         change = 1;
+      }
+   }
+
+   //change가 1이되면
+   if (change == 1)
+   {
+      //카드 총합이 11보다 작거나 같을경우
+      if (serverCardSum <= 11)
+      {
+         serverCardSum += 10;
+      }
+
+   }
+
+   //합이 21일 경우에
+   if (serverCardSum == 21)
+   {
+      printf("Black jack! server win!!\n");
+      printf("[[[[[[[server result is.... Blackjack ]]]]]]]");
+      //턴 종료
+      turnEnd = 1;
+   }
+   //합이 21 초과할 경우에
+   else if (serverCardSum > 21)
+   {
+      printf("serever Dead (sum:%d)\n", serverCardSum);
+      printf("[[[[[[[server result is.... Overflow!! ]]]]]]]");
+      //턴 종료
+      turnEnd = 1;
+   }
+
+}
+
+//유저 액션
+int getAction(void) {
+
+   //턴 종료 플래그가 1이라면 리턴
+   if (turnEnd == 1)
+   {
+      printf("\n\n\n");
+      return -1;
+   }
+
+   printf("Action? (0 - go, others - stay) :");
+
+   input = getIntegerInput();
+
+   //input 이 0이면 GO
+   //카드를 한장 더 받는다.
+   if (input == 0)
+   {
+      cardhold[0][handCardNum] = pullCard();
+      handCardNum++;
+   }
+   //Stay
+   else
+   {
+      //턴 종료
+      turnEnd = 1;
+      printf("\n\n");
+   }
+   
+
+}
+
+//컴퓨터 플레이어 액션
+int AIGetAction(int user)
+{
+   //턴 종료 플래그가 1이라면 리턴
+   if (turnEnd == 1)
+   {
+      printf("\n\n\n");
+      return -1;
+   }
+
+   //카드 합이 17 이상이면
+   if (cardSum[user] >= 17)
+   {
+      //턴 종료
+      turnEnd = 1;
+
+      printf("STAY!");
+      printf("\n\n\n");
+   }
+   //17미만이면
+   else
+   {
+      printf("GO!");
+      cardhold[user][handCardNum] = pullCard();
+      handCardNum++;
+      printf("\n");
+   }
+}
+
+//딜러 액션
+int ServerAction()
+{
+   //턴 종료 플래그가 1이라면 리턴
+   if (turnEnd == 1)
+   {
+      printf("\n\n\n");
+      return -1;
+   }
+
+   //카드 합이 17 이상이면
+   if (serverCardSum >= 17)
+   {
+      //턴 종료
+      turnEnd = 1;
+
+      printf("STAY!\n");
+      printf("[[[[[[[server result is.... %d ]]]]]]]", serverCardSum);
+      printf("\n\n\n");
+   }
+   //17미만이면
+   else
+   {
+      printf("GO!\n");
+      cardhold[n_user][handCardNum] = pullCard();
+      handCardNum++;
+   }
 }
 
 int checkResult() {
@@ -372,10 +569,11 @@ int main(int argc, char *argv[]) {
    int i;
 
    srand((unsigned)time(NULL));
-
    //set the number of players
    configUser();
 
+   //서버를 포함한 최대 유저수
+   max_user = n_user + 1;
 
    //Game initialization --------
    //1. players' dollar
@@ -394,6 +592,7 @@ int main(int argc, char *argv[]) {
       //만약 gameEnd 플래그가 0이 아니라면
       if (gameEnd != 0)
       {
+         printf("Card ran out of the tray!! finishing the game.");
          //건너뛰어서 게임 종료한다.
          continue;
       }
@@ -401,22 +600,78 @@ int main(int argc, char *argv[]) {
       printCardInitialStatus();
       printf("\n------------------ GAME start --------------------------\n");
 
-      ////each player's turn
-      //for () //each player
-      //{
-      //   while () //do until the player dies or player says stop
-      //   {
-      //      //print current card status printUserCardStatus();
-      //      //check the card status ::: calcStepResult()
-      //      //GO? STOP? ::: getAction()
-      //      //check if the turn ends or not
-      //   }
-      //}
+      //each player's turn
+      for (i = 0; i < max_user;i++) //each player
+      {
+         //turnEnd 플래그 초기화
+         turnEnd = 0;
+         //다음 플레이어 턴에 카드 소지 횟수 초기화
+         handCardNum = 2;
+         if (i == 0)
+         {
+            printf(">>> my turn! -------------\n");
+         }
+         else if (i == max_user - 1)
+         {
+            printf(">>> server turn! ---------------------\n");
+         }
+         else
+         {
+            printf(">>> player %d turn! -------------\n", i);
+         }
+
+         while (turnEnd == 0) //do until the player dies or player says stop
+         {
+
+
+            //유저라면
+            if (i == 0)
+            {
+               //print current card status printUserCardStatus();
+               printUserCardStatus(i, handCardNum);
+               //check the card status ::: calcStepResult()
+               calcStepResult(i);
+               //GO? STOP? ::: getAction()
+               getAction();
+            }
+            //딜러라면
+            else if (i == max_user-1)
+            {
+               //print current card status printUserCardStatus();
+               printUserCardStatus(i, handCardNum);
+               //딜러 카드 계산
+               calcsServerStepResult();
+               //딜러 액션
+               ServerAction();
+            }
+            //나머지 플레이어들이라면
+            else
+            {
+               //print current card status printUserCardStatus();
+               printUserCardStatus(i, handCardNum);
+               //check the card status ::: calcStepResult()
+               calcStepResult(i);
+               //플레이어 ai 액션
+               AIGetAction(i);
+            }
+
+            //만약 gameEnd 플래그가 0이 아니라면
+            if (gameEnd != 0)
+            {
+               printf("Card ran out of the tray!! finishing the game.");
+               //건너뛰어서 게임 종료한다.
+               goto END;
+            }
+
+            //check if the turn ends or not
+         }
+      }
 
       //result
       checkResult();
    } while (gameEnd == 0);
 
+   END:
    checkWinner();
 
 
